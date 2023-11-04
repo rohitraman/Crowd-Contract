@@ -1,0 +1,68 @@
+---
+name: testAndCreateDockerImageBackend
+run-name: testAndCreateDockerImageBackend
+on:
+  push:
+    paths:
+       # - 'server/**'
+    branches:
+      - main
+    
+jobs:
+  build-frontend-push-img-to-Dockerhub:
+    name: build dist for nginx container
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 16
+      - name: build backend
+        run: |
+          cd client
+          npm install
+          npm run build
+      - name: Archive /dist as artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: dist
+          path: client/dist
+
+      - name: npm install and test-db
+        run: |
+          cd server
+          npm i
+          echo "MONGO_URI='mongodb+srv://crowdContractUser:1234@crowdcontract.ji7u87b.mongodb.net'
+                PORT=5051
+                JWT_SECRET_KEY='7de4afd53ba6eae584e0b6281bea2030d99a5971c6585a2b93ddc206dcff271651b44472cfb54acf01cb76b6eb8a2d9caa0251a3a40e7e666475822a11c7ce89'
+                AES_SECRET_KEY='2a953982e33475be953e3cadaa2b11e15a7790299e5be36e4022b1e84d3d495a273817b18a85246d6414e62d062d633654ecd3876841b714e78d6765f8648006'
+                SALT_ROUNDS=5" > .env
+          npm run test-db
+          echo "MONGO_URI='mongodb+srv://crowdContractUser:1234@crowdcontract.ji7u87b.mongodb.net/crowdContract'
+                PORT=5051
+                JWT_SECRET_KEY='7de4afd53ba6eae584e0b6281bea2030d99a5971c6585a2b93ddc206dcff271651b44472cfb54acf01cb76b6eb8a2d9caa0251a3a40e7e666475822a11c7ce89'
+                AES_SECRET_KEY='2a953982e33475be953e3cadaa2b11e15a7790299e5be36e4022b1e84d3d495a273817b18a85246d6414e62d062d633654ecd3876841b714e78d6765f8648006'
+                SALT_ROUNDS=5" > .env
+
+          npm run test-api
+          rm .env
+          
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          
+#       - name: copy dist to . from Artifacts
+#         uses: actions/download-artifact@v3
+#         with:
+#           name: dist
+        
+      - name: build and push to DockerHub
+        run: |
+          docker buildx build --platform linux/amd64,linux/arm64/v8 --push --tag prathvirajbn/crowdcontract-backend:latest ./server
+      - name: Image digest
+        run: echo ${{ steps.docker_build.outputs.digest }}

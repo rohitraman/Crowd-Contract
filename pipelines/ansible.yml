@@ -1,0 +1,45 @@
+name: Ansible deploy
+
+env:
+  "ANSIBLE_CONFIG" : /home/runner/work/crowdContract/crowdContract/ansible.cfg
+on:
+#   push:
+#     branches:
+#       - main
+  workflow_run:
+    workflows: ["testAndCreateDockerImageBackend", "testAndCreateDockerImage"]
+    types:
+      - completed
+jobs:
+  build-frontend-push-img-to-Dockerhub:
+    name: build dist for nginx container
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+    - name: Check python path
+      run: |
+        python3 -c "import os; print(os.environ['_'])"
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install boto3 botocore jmespath
+        pipx inject ansible-core jmespath
+
+    - name: Run playbook
+      uses: dawidd6/action-ansible-playbook@v2
+      env:
+            PRIVATE_KEY: ${{ secrets.AWS_SSH_KEY  }}
+            K8S_AUTH_KUBECONFIG: ${{secrets.KUBE_CONFIG_DATA}}
+      with:
+        playbook: deployToAws.yaml
+        directory: /home/runner/work/crowdContract/crowdContract/playbooks
+        inventory: |
+          [local] 
+          ${{secrets.AWS_IP}} ansible_ssh_user=${{secrets.ANSIBLE_SSH_USERNAME}} ansible_ssh_pass=${{secrets.ANSIBLE_SSH_PASS}} ansible_sudo_pass=${{secrets.ANSIBLE_SUDO_PASS}} ansible_python_interpreter=/usr/bin/python3
+
+          [all:vars]
+          ansible_python_interpreter=/usr/bin/python3

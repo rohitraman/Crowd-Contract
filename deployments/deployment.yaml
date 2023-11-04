@@ -1,0 +1,23 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: crowdcontract-frontend
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: crowdcontract-frontend
+  template:
+    metadata:
+      labels:
+        app: crowdcontract-frontend
+    spec:
+      containers:
+      - name: crowdcontract-frontend
+        image: rohitraman/crowdcontract-frontend:latest
+        env:
+        - name: DOCKER_DEFAULT_PLATFORM
+          value: "linux/amd64"
+        ports:
+        - containerPort: 80
